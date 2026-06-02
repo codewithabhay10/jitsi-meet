@@ -819,6 +819,9 @@
         "youAreAlone": "You are the only one in the meeting"
     },
     "me": "me",
+    "multiScreen": {
+        "windowTitle": "Jitsi Meet — Multi-Screen"
+    },
     "notify": {
         "OldElectronAPPTitle": "Security vulnerability!",
         "allowAll": "Allow All",

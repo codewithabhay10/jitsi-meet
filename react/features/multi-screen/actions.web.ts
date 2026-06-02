@@ -1,8 +1,10 @@
 import { IStore } from '../app/types';
+import i18next from '../base/i18n/i18next';
+import BaseTheme from '../base/ui/components/BaseTheme.web';
 
 import { SET_MULTI_SCREEN_ACTIVE, SET_SECONDARY_LAYOUT } from './actionTypes';
-import { SecondaryLayout } from './constants';
-import { isMultiScreenSupported } from './functions';
+import { SECONDARY_WINDOW_NAME, SECONDARY_WINDOW_ROOT_ID, SecondaryLayout } from './constants';
+import { getSecondaryWindowPlacement, isMultiScreenSupported } from './functions';
 import logger from './logger';
 
 /**
@@ -84,45 +86,13 @@ export function openSecondaryWindow() {
             return;
         }
 
-        let left = 100;
-        let top = 100;
-        let width = 960;
-        let height = 540;
-
-        // Try to use the Window Management API for smart screen placement.
-        try {
-            if ('getScreenDetails' in window) {
-                // @ts-ignore — Window Management API types not yet in lib.dom.
-                const screenDetails = await window.getScreenDetails();
-                const screens = screenDetails.screens;
-
-                if (screens.length > 1) {
-                    // Find a non-primary screen and fill it.
-                    const secondary = screens.find(
-                        (s: { isPrimary: boolean; }) => !s.isPrimary
-                    ) || screens[1];
-
-                    left = secondary.availLeft;
-                    top = secondary.availTop;
-                    width = secondary.availWidth;
-                    height = secondary.availHeight;
-
-                    logger.info(
-                        `Targeting secondary screen: ${width}x${height} at (${left}, ${top})`
-                    );
-                } else {
-                    logger.info('Only one screen detected, using offset position');
-                }
-            }
-        } catch (error) {
-            logger.warn('Window Management API failed, using fallback position', error);
-        }
-
-        // Open the secondary window.
+        // Resolve where to place the secondary window (smart multi-monitor
+        // placement when available, otherwise a sensible fallback).
+        const { left, top, width, height } = await getSecondaryWindowPlacement();
         const features = `left=${left},top=${top},width=${width},height=${height}`;
 
         try {
-            const newWindow = window.open('about:blank', 'jitsi-multi-screen', features);
+            const newWindow = window.open('about:blank', SECONDARY_WINDOW_NAME, features);
 
             if (!newWindow) {
                 logger.error('Popup was blocked by the browser');
@@ -131,11 +101,14 @@ export function openSecondaryWindow() {
             }
 
             // Set up the secondary window document.
-            newWindow.document.title = 'Jitsi Meet — Multi-Screen';
+            newWindow.document.title = i18next.t('multiScreen.windowTitle');
 
-            // Set dark background matching conference theme.
-            newWindow.document.documentElement.style.backgroundColor = '#1a1a2e';
-            newWindow.document.body.style.backgroundColor = '#1a1a2e';
+            // Match the conference background using the theme token so it stays
+            // consistent if branding changes.
+            const { uiBackground } = BaseTheme.palette;
+
+            newWindow.document.documentElement.style.backgroundColor = uiBackground;
+            newWindow.document.body.style.backgroundColor = uiBackground;
             newWindow.document.body.style.margin = '0';
             newWindow.document.body.style.padding = '0';
             newWindow.document.body.style.overflow = 'hidden';
@@ -143,7 +116,7 @@ export function openSecondaryWindow() {
             // Create the root element for React portal rendering.
             const rootDiv = newWindow.document.createElement('div');
 
-            rootDiv.id = 'multi-screen-root';
+            rootDiv.id = SECONDARY_WINDOW_ROOT_ID;
             rootDiv.style.width = '100%';
             rootDiv.style.height = '100%';
             newWindow.document.body.appendChild(rootDiv);
