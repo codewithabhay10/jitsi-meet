@@ -31,6 +31,25 @@ export interface ISecondaryWindowPlacement {
 }
 
 /**
+ * The result of resolving a secondary-window placement: the geometry plus
+ * whether the Window Management permission was denied (so the caller can
+ * surface that to the user).
+ */
+export interface ISecondaryWindowPlacementResult {
+
+    /**
+     * Whether window-management permission was denied, causing placement to
+     * fall back instead of targeting a specific monitor.
+     */
+    permissionDenied: boolean;
+
+    /**
+     * The computed window geometry.
+     */
+    placement: ISecondaryWindowPlacement;
+}
+
+/**
  * Returns whether multi-screen support is available in the current browser.
  *
  * The feature requires the Window Management API (getScreenDetails) for
@@ -78,13 +97,14 @@ export function getSecondaryLayout(state: IReduxState): SecondaryLayout {
  * permission is denied — it falls back to an offset window sized relative to
  * the available screen real estate (see {@link SECONDARY_WINDOW_FALLBACK}).
  *
- * @returns {Promise<ISecondaryWindowPlacement>} The window placement geometry.
+ * @returns {Promise<ISecondaryWindowPlacementResult>} The placement geometry
+ * and whether window-management permission was denied.
  */
-export async function getSecondaryWindowPlacement(): Promise<ISecondaryWindowPlacement> {
-    const fallback = getFallbackPlacement();
+export async function getSecondaryWindowPlacement(): Promise<ISecondaryWindowPlacementResult> {
+    const placement = getFallbackPlacement();
 
     if (typeof window === 'undefined' || !('getScreenDetails' in window)) {
-        return fallback;
+        return { permissionDenied: false, placement };
     }
 
     try {
@@ -93,26 +113,31 @@ export async function getSecondaryWindowPlacement(): Promise<ISecondaryWindowPla
         if (screens.length <= 1) {
             logger.info('Only one screen detected, using offset position');
 
-            return fallback;
+            return { permissionDenied: false, placement };
         }
 
         // Find a non-primary screen and fill it.
         const secondary = screens.find(s => !s.isPrimary) || screens[1];
-        const placement: ISecondaryWindowPlacement = {
+        const targeted: ISecondaryWindowPlacement = {
             height: secondary.availHeight,
             left: secondary.availLeft,
             top: secondary.availTop,
             width: secondary.availWidth
         };
 
-        logger.info(`Targeting secondary screen: ${placement.width}x${placement.height} `
-            + `at (${placement.left}, ${placement.top})`);
+        logger.info(`Targeting secondary screen: ${targeted.width}x${targeted.height} `
+            + `at (${targeted.left}, ${targeted.top})`);
 
-        return placement;
+        return { permissionDenied: false, placement: targeted };
     } catch (error) {
+        // getScreenDetails rejects with a NotAllowedError DOMException when the
+        // window-management permission is denied; distinguish that so the caller
+        // can prompt the user, versus other (transient) failures.
+        const permissionDenied = error instanceof DOMException && error.name === 'NotAllowedError';
+
         logger.warn('Window Management API failed, using fallback position', error);
 
-        return fallback;
+        return { permissionDenied, placement };
     }
 }
 
