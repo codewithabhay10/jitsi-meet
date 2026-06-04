@@ -49,6 +49,28 @@ function useAudioLevelActiveSpeaker(): string | null {
 
         const handlers: Array<{ handler: (level: number) => void; track: any; }> = [];
 
+        // Latest audio level per participant, so that when several people speak
+        // at once the speaker resolves to the loudest rather than to whichever
+        // event happened to fire last (which caused flicker).
+        const levels = new Map<string, number>();
+
+        const pickLoudest = () => {
+            let loudestId: string | null = null;
+            let loudestLevel = ACTIVE_SPEAKER_AUDIO_LEVEL_THRESHOLD;
+
+            levels.forEach((level, id) => {
+                if (level > loudestLevel) {
+                    loudestLevel = level;
+                    loudestId = id;
+                }
+            });
+
+            // Hold the previous speaker while everyone is below the threshold.
+            if (loudestId !== null) {
+                setActiveSpeakerId(loudestId);
+            }
+        };
+
         audioTracks.forEach(track => {
             const jitsiTrack = track.jitsiTrack;
 
@@ -57,9 +79,8 @@ function useAudioLevelActiveSpeaker(): string | null {
             }
 
             const handler = (level: number) => {
-                if (level > ACTIVE_SPEAKER_AUDIO_LEVEL_THRESHOLD) {
-                    setActiveSpeakerId(track.participantId);
-                }
+                levels.set(track.participantId, level);
+                pickLoudest();
             };
 
             try {
@@ -128,37 +149,35 @@ const SecondaryConference: React.FC = () => {
         (state: IReduxState) => getSecondaryLayout(state)
     );
 
-    // Gallery container dimensions via ResizeObserver.
-    const galleryRef = useRef<HTMLDivElement>(null);
+    // Gallery container dimensions, tracked via a ResizeObserver bound through a
+    // callback ref. The callback (re)attaches the observer whenever the grid
+    // element mounts — including when participants arrive after the window was
+    // opened on an empty gallery, a case a layout-only effect dependency missed.
     const [ galleryDimensions, setGalleryDimensions ] = useState({
         width: 800,
         height: 600
     });
+    const galleryObserverRef = useRef<ResizeObserver | null>(null);
 
-    useEffect(() => {
-        const element = galleryRef.current;
+    const attachGalleryRef = useCallback((element: HTMLDivElement | null) => {
+        galleryObserverRef.current?.disconnect();
+        galleryObserverRef.current = null;
 
-        if (!element || currentLayout !== SECONDARY_LAYOUTS.GALLERY) {
+        if (!element) {
             return;
         }
 
-        const observer = new ResizeObserver(() => {
-            setGalleryDimensions({
-                width: element.clientWidth,
-                height: element.clientHeight
-            });
-        });
-
-        observer.observe(element);
-
-        // Set initial dimensions.
-        setGalleryDimensions({
+        const measure = () => setGalleryDimensions({
             width: element.clientWidth,
             height: element.clientHeight
         });
 
-        return () => observer.disconnect();
-    }, [ currentLayout ]);
+        const observer = new ResizeObserver(measure);
+
+        observer.observe(element);
+        galleryObserverRef.current = observer;
+        measure();
+    }, []);
 
     // Get participants. Membership is driven by the filmstrip's
     // remoteParticipants array, which is reassigned immutably on join/leave.
@@ -299,7 +318,7 @@ const SecondaryConference: React.FC = () => {
         return (
             <div
                 className = 'multi-screen-gallery'
-                ref = { galleryRef }>
+                ref = { attachGalleryRef }>
                 { galleryRows.map((row, rowIndex) => (
                     <div
                         className = 'multi-screen-gallery-row'
