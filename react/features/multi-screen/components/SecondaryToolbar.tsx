@@ -53,6 +53,7 @@ const SecondaryToolbar: React.FC = () => {
         <div className = 'multi-screen-toolbar'>
             <div className = 'multi-screen-toolbar-buttons'>
                 <button
+                    aria-pressed = { currentLayout === SECONDARY_LAYOUTS.ACTIVE_SPEAKER }
                     className = { `multi-screen-toolbar-btn ${
                         currentLayout === SECONDARY_LAYOUTS.ACTIVE_SPEAKER
                             ? 'active' : ''
@@ -63,6 +64,7 @@ const SecondaryToolbar: React.FC = () => {
                     { t('multiScreen.speakerView') }
                 </button>
                 <button
+                    aria-pressed = { currentLayout === SECONDARY_LAYOUTS.GALLERY }
                     className = { `multi-screen-toolbar-btn ${
                         currentLayout === SECONDARY_LAYOUTS.GALLERY
                             ? 'active' : ''

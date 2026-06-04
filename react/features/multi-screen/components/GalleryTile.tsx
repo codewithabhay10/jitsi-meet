@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
 
 import { IReduxState } from '../../app/types';
@@ -6,6 +6,8 @@ import Avatar from '../../base/avatar/components/Avatar';
 import { MEDIA_TYPE } from '../../base/media/constants';
 import { getParticipantDisplayName } from '../../base/participants/functions';
 import { getTrackByMediaTypeAndParticipant } from '../../base/tracks/functions.any';
+
+import { useAttachTrack } from './useAttachTrack';
 
 interface IProps {
 
@@ -34,8 +36,8 @@ interface IProps {
 /**
  * Individual participant tile for the gallery view in the secondary window.
  *
- * Each tile independently manages its own video track attach/detach lifecycle
- * and tracks audio levels for the speaking indicator border.
+ * Each tile manages its own video track attach/detach lifecycle; the speaking
+ * indicator border is driven by the {@code isActiveSpeaker} prop.
  *
  * @param {IProps} props - Component props.
  * @returns {React.ReactElement}
@@ -47,7 +49,6 @@ const GalleryTile: React.FC<IProps> = ({
     width
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const previousTrackRef = useRef<any>(null);
 
     // Resolve the name reactively from the store so renames update the label.
     // getParticipantDisplayName supplies the deployment's localized fallback
@@ -65,34 +66,7 @@ const GalleryTile: React.FC<IProps> = ({
     const hasVideo = Boolean(videoTrack?.jitsiTrack && !videoTrack.muted);
 
     // Video track attach/detach lifecycle.
-    useEffect(() => {
-        const videoElement = videoRef.current;
-
-        if (!videoElement) {
-            return;
-        }
-
-        // Detach previous track.
-        if (previousTrackRef.current?.jitsiTrack) {
-            previousTrackRef.current.jitsiTrack.detach(videoElement);
-        }
-
-        // Attach new track.
-        if (videoTrack?.jitsiTrack) {
-            videoTrack.jitsiTrack.attach(videoElement);
-        } else {
-            // Prevent stale frames.
-            videoElement.srcObject = null;
-        }
-
-        previousTrackRef.current = videoTrack;
-
-        return () => {
-            if (videoTrack?.jitsiTrack && videoElement) {
-                videoTrack.jitsiTrack.detach(videoElement);
-            }
-        };
-    }, [ videoTrack, participantId ]);
+    useAttachTrack(videoRef, videoTrack);
 
     const tileStyle = {
         width: `${width}px`,

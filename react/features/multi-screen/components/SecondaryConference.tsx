@@ -13,6 +13,7 @@ import { getSecondaryLayout } from '../functions';
 
 import GalleryTile from './GalleryTile';
 import SecondaryToolbar from './SecondaryToolbar';
+import { useAttachTrack } from './useAttachTrack';
 
 /**
  * Audio level threshold for detecting active speaking.
@@ -187,8 +188,9 @@ const SecondaryConference: React.FC = () => {
         return ids.concat(remoteParticipantIds);
     }, [ localParticipant?.id, remoteParticipantIds ]);
 
-    // 4-tier active speaker priority chain. Candidates that have already left
-    // the conference are skipped so a departed participant is never shown.
+    // Active-speaker priority chain (resolved across the two values below).
+    // Candidates that have already left the conference are skipped so a departed
+    // participant is never shown.
     const audioLevelActiveSpeakerId = useAudioLevelActiveSpeaker();
 
     // The participant actively speaking, resolved from (in priority order)
@@ -221,38 +223,12 @@ const SecondaryConference: React.FC = () => {
     const activeParticipantName = useSelector((state: IReduxState) =>
         (activeSpeakerId ? getParticipantDisplayName(state, activeSpeakerId) : ''));
 
-    // Video element ref and track attach/detach lifecycle.
+    // Video element ref and track attach/detach lifecycle. currentLayout is the
+    // reset key: switching back from Gallery remounts this <video>, so the track
+    // must be re-attached even when the active speaker (and track) is unchanged.
     const videoRef = useRef<HTMLVideoElement>(null);
-    const previousTrackRef = useRef<any>(null);
 
-    useEffect(() => {
-        const videoElement = videoRef.current;
-
-        if (!videoElement) {
-            return;
-        }
-
-        // Detach previous track.
-        if (previousTrackRef.current?.jitsiTrack) {
-            previousTrackRef.current.jitsiTrack.detach(videoElement);
-        }
-
-        // Attach new track.
-        if (videoTrack?.jitsiTrack) {
-            videoTrack.jitsiTrack.attach(videoElement);
-        } else {
-            // Prevent stale frames.
-            videoElement.srcObject = null;
-        }
-
-        previousTrackRef.current = videoTrack;
-
-        return () => {
-            if (videoTrack?.jitsiTrack && videoElement) {
-                videoTrack.jitsiTrack.detach(videoElement);
-            }
-        };
-    }, [ videoTrack, activeSpeakerId ]);
+    useAttachTrack(videoRef, videoTrack, currentLayout);
 
     /**
      * Renders the Active Speaker layout.

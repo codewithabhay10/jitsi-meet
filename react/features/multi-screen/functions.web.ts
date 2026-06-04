@@ -52,18 +52,18 @@ export interface ISecondaryWindowPlacementResult {
 /**
  * Returns whether multi-screen support is available in the current browser.
  *
- * The feature requires the Window Management API (getScreenDetails) for
- * optimal multi-monitor placement, but falls back to basic window.open()
- * positioning if the API is unavailable.
- *
- * Currently gated on Window Management API support (Chrome/Edge 100+).
+ * The feature only needs {@code window.open()} to work; the Window Management
+ * API ({@code getScreenDetails}) is used for smart multi-monitor placement when
+ * present (Chrome/Edge 100+) and otherwise the window opens at a fallback offset
+ * the user can drag to another screen. Gating on {@code window.open} (rather than
+ * the placement API) keeps that fallback path reachable on Firefox/Safari.
  *
  * @param {IReduxState} state - The Redux state.
  * @returns {boolean} Whether multi-screen is supported.
  */
 export function isMultiScreenSupported(state: IReduxState): boolean {
     return typeof window !== 'undefined'
-        && 'getScreenDetails' in window
+        && typeof window.open === 'function'
         && state['features/base/config'].multiScreen?.enabled !== false;
 }
 

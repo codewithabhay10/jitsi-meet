@@ -230,12 +230,14 @@
     background-color: rgba(255, 255, 255, 0.15);
 }
 
+/* Selected layout — Jitsi's action01 / hover01 token (#4687ED), matching the
+ * dominant-speaker ring. */
 .multi-screen-toolbar-btn.active {
-    background-color: #246fe0;
+    background-color: #4687ED;
 }
 
 .multi-screen-toolbar-btn.active:hover {
-    background-color: #1d5bba;
+    background-color: #2f6fd6;
 }
 
 .multi-screen-close-btn {
