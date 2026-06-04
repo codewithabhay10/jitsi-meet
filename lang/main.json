@@ -819,6 +819,11 @@
         "youAreAlone": "You are the only one in the meeting"
     },
     "me": "me",
+    "multiScreen": {
+        "permissionDenied": "Grant the window-management permission to automatically place this window on another screen.",
+        "permissionDeniedTitle": "Couldn't move window to another screen",
+        "windowTitle": "Jitsi Meet — Multi-Screen"
+    },
     "notify": {
         "OldElectronAPPTitle": "Security vulnerability!",
         "allowAll": "Allow All",
