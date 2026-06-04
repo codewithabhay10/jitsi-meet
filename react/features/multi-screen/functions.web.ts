@@ -92,10 +92,11 @@ export function getSecondaryLayout(state: IReduxState): SecondaryLayout {
  * window.
  *
  * Uses the Window Management API (getScreenDetails) to detect connected
- * monitors and, when more than one is present, fills a non-primary screen.
- * When only a single screen is available — or the API is unsupported or its
- * permission is denied — it falls back to an offset window sized relative to
- * the available screen real estate (see {@link SECONDARY_WINDOW_FALLBACK}).
+ * monitors and, when more than one is present, fills whichever screen the main
+ * meeting window is not currently on. When only a single screen is available —
+ * or the API is unsupported or its permission is denied — it falls back to an
+ * offset window sized relative to the available screen real estate (see
+ * {@link SECONDARY_WINDOW_FALLBACK}).
  *
  * @returns {Promise<ISecondaryWindowPlacementResult>} The placement geometry
  * and whether window-management permission was denied.
@@ -108,7 +109,7 @@ export async function getSecondaryWindowPlacement(): Promise<ISecondaryWindowPla
     }
 
     try {
-        const { screens } = await window.getScreenDetails();
+        const { currentScreen, screens } = await window.getScreenDetails();
 
         if (screens.length <= 1) {
             logger.info('Only one screen detected, using offset position');
@@ -116,8 +117,15 @@ export async function getSecondaryWindowPlacement(): Promise<ISecondaryWindowPla
             return { permissionDenied: false, placement };
         }
 
-        // Find a non-primary screen and fill it.
-        const secondary = screens.find(s => !s.isPrimary) || screens[1];
+        // Fill whichever screen the main meeting window is NOT currently on, so
+        // the secondary always lands on the other monitor regardless of which
+        // display the meeting occupies. Screens are matched by their position in
+        // the virtual desktop (object identity is not guaranteed across the API);
+        // fall back to a non-primary screen, then to any other screen.
+        const isSameScreen = (a: ScreenDetailed, b: ScreenDetailed) => a.left === b.left && a.top === b.top;
+        const secondary = screens.find(s => !isSameScreen(s, currentScreen))
+            ?? screens.find(s => !s.isPrimary)
+            ?? screens[1];
         const targeted: ISecondaryWindowPlacement = {
             height: secondary.availHeight,
             left: secondary.availLeft,
