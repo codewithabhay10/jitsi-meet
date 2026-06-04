@@ -823,8 +823,12 @@
     },
     "me": "me",
     "multiScreen": {
+        "close": "Close",
+        "galleryView": "Gallery",
+        "noParticipants": "No participants",
         "permissionDenied": "Grant the window-management permission to automatically place this window on another screen.",
         "permissionDeniedTitle": "Couldn't move window to another screen",
+        "speakerView": "Speaker",
         "windowTitle": "Jitsi Meet — Multi-Screen"
     },
     "notify": {
