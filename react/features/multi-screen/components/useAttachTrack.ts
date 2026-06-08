@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useRef } from 'react';
+import { RefObject, useEffect } from 'react';
 
 import { ITrack } from '../../base/tracks/types';
 
@@ -9,23 +9,18 @@ import { ITrack } from '../../base/tracks/types';
  * never left on screen.
  *
  * Shared by the active-speaker stage and each gallery tile so the attach/detach
- * lifecycle lives in one place.
+ * lifecycle lives in one place. The Active Speaker and Gallery views mount fresh
+ * on a layout switch, so a remounted element re-runs this effect and re-attaches
+ * on its own — no explicit reset key is needed.
  *
  * @param {RefObject<HTMLVideoElement>} videoRef - Ref to the target video element.
  * @param {ITrack} [videoTrack] - The track to display, if any.
- * @param {unknown} [resetKey] - Optional value that forces a re-attach when it
- * changes even if the track is unchanged. Needed when the video element is
- * remounted while the track stays the same — e.g. switching the secondary
- * window back from Gallery to Active Speaker — so the new element gets the track.
  * @returns {void}
  */
 export function useAttachTrack(
         videoRef: RefObject<HTMLVideoElement>,
-        videoTrack?: ITrack,
-        resetKey?: unknown
+        videoTrack?: ITrack
 ): void {
-    const previousTrackRef = useRef<ITrack | undefined>(undefined);
-
     useEffect(() => {
         const videoElement = videoRef.current;
 
@@ -33,24 +28,23 @@ export function useAttachTrack(
             return;
         }
 
-        // Detach the previously-attached track from this element.
-        if (previousTrackRef.current?.jitsiTrack) {
-            previousTrackRef.current.jitsiTrack.detach(videoElement);
-        }
+        const jitsiTrack = videoTrack?.jitsiTrack;
 
-        if (videoTrack?.jitsiTrack) {
-            videoTrack.jitsiTrack.attach(videoElement);
+        if (jitsiTrack) {
+            jitsiTrack.attach(videoElement);
         } else {
             // Prevent stale frames when there is nothing to show.
             videoElement.srcObject = null;
         }
 
-        previousTrackRef.current = videoTrack;
-
+        // Detaching lives only here: React runs this cleanup before the next
+        // effect (on a videoTrack change) and on unmount, so the element is
+        // detached exactly once before any re-attach — detaching in the effect
+        // body too would detach the same track twice.
         return () => {
-            if (videoTrack?.jitsiTrack && videoElement) {
-                videoTrack.jitsiTrack.detach(videoElement);
+            if (jitsiTrack) {
+                jitsiTrack.detach(videoElement);
             }
         };
-    }, [ videoTrack, resetKey ]);
+    }, [ videoTrack ]);
 }

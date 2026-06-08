@@ -1,4 +1,7 @@
+import { useSelector } from 'react-redux';
+
 import MultiScreenButton from './components/MultiScreenButton';
+import { isMultiScreenSupported } from './functions';
 
 const multiScreen = {
     key: 'multi-screen',
@@ -7,12 +10,16 @@ const multiScreen = {
 };
 
 /**
- * A hook that returns the multi-screen toolbar button descriptor. The button
- * itself hides when unsupported via its {@code visible} prop
- * (isMultiScreenSupported), so this always returns the descriptor.
+ * A hook that returns the multi-screen toolbar button descriptor when the
+ * feature is supported, and undefined otherwise (so the toolbox omits it
+ * entirely), mirroring the other conditional toolbar-button hooks.
  *
- * @returns {Object}
+ * @returns {Object | undefined}
  */
 export function useMultiScreenButton() {
-    return multiScreen;
+    const supported = useSelector(isMultiScreenSupported);
+
+    if (supported) {
+        return multiScreen;
+    }
 }

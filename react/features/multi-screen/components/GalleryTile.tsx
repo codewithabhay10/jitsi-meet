@@ -57,16 +57,17 @@ const GalleryTile: React.FC<IProps> = ({
         (state: IReduxState) => getParticipantDisplayName(state, participantId)
     );
 
-    // Get video track for this participant.
-    const tracks = useSelector((state: IReduxState) => state['features/base/tracks']);
-    const videoTrack = getTrackByMediaTypeAndParticipant(
-        tracks, MEDIA_TYPE.VIDEO, participantId
-    );
+    // Select this participant's specific video track rather than the whole
+    // tracks slice, so the tile only re-renders when its own track changes
+    // (not on every track mutation anywhere in the conference).
+    const videoTrack = useSelector((state: IReduxState) =>
+        getTrackByMediaTypeAndParticipant(state['features/base/tracks'], MEDIA_TYPE.VIDEO, participantId));
 
     const hasVideo = Boolean(videoTrack?.jitsiTrack && !videoTrack.muted);
 
-    // Video track attach/detach lifecycle.
-    useAttachTrack(videoRef, videoTrack);
+    // Attach only when there is a live, unmuted track; muted/camera-off tiles
+    // show the avatar instead.
+    useAttachTrack(videoRef, hasVideo ? videoTrack : undefined);
 
     const tileStyle = {
         width: `${width}px`,

@@ -28,7 +28,16 @@ const MultiScreenWindow: React.FC = () => {
     }
 
     const secondaryWindow = getSecondaryWindow();
-    const rootElement = secondaryWindow?.document?.getElementById(SECONDARY_WINDOW_ROOT_ID);
+
+    // The user may have closed the window externally before Redux flips
+    // isActive to false; reading .document on a closed window can throw or
+    // behave inconsistently across browsers, so bail out on a missing or
+    // already-closed window first.
+    if (!secondaryWindow || secondaryWindow.closed) {
+        return null;
+    }
+
+    const rootElement = secondaryWindow.document?.getElementById(SECONDARY_WINDOW_ROOT_ID);
 
     if (!rootElement) {
         return null;

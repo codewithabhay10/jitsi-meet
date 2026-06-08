@@ -7,7 +7,7 @@ import { translate } from '../../base/i18n/functions';
 import { IconEnlarge } from '../../base/icons/svg';
 import AbstractButton, { IProps as AbstractButtonProps } from '../../base/toolbox/components/AbstractButton';
 import { toggleMultiScreen } from '../actions';
-import { isMultiScreenActive, isMultiScreenSupported } from '../functions';
+import { isMultiScreenActive } from '../functions';
 
 interface IProps extends AbstractButtonProps {
 
@@ -69,8 +69,7 @@ class MultiScreenButton extends AbstractButton<IProps> {
  */
 const mapStateToProps = (state: IReduxState) => {
     return {
-        _isActive: isMultiScreenActive(state),
-        visible: isMultiScreenSupported(state)
+        _isActive: isMultiScreenActive(state)
     };
 };
 

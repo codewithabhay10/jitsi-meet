@@ -88,6 +88,37 @@ export function getSecondaryLayout(state: IReduxState): SecondaryLayout {
 }
 
 /**
+ * Computes the gallery grid dimensions (columns and rows) for a given number of
+ * participants, using a Jitsi-style heuristic:
+ * {@code columns = min(ceil(sqrt(n)), maxColumns, n)}.
+ *
+ * Kept pure and side-effect free so it can be unit-tested in isolation.
+ *
+ * @param {number} numberOfParticipants - The number of participants to lay out.
+ * @param {number} maxColumns - The maximum number of columns allowed.
+ * @returns {Object} The grid dimensions, as { columns, rows }.
+ */
+export function getGalleryGridDimensions(
+        numberOfParticipants: number,
+        maxColumns: number
+): { columns: number; rows: number; } {
+    if (numberOfParticipants <= 0) {
+        return { columns: 1,
+            rows: 1 };
+    }
+
+    const columns = Math.min(
+        Math.ceil(Math.sqrt(numberOfParticipants)),
+        maxColumns,
+        numberOfParticipants
+    );
+    const rows = Math.ceil(numberOfParticipants / columns);
+
+    return { columns,
+        rows };
+}
+
+/**
  * Computes the placement (position and size) for the secondary multi-screen
  * window.
  *

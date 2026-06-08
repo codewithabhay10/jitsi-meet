@@ -825,6 +825,7 @@
     "multiScreen": {
         "close": "Close",
         "galleryView": "Gallery",
+        "layoutLabel": "Secondary window layout",
         "noParticipants": "No participants",
         "permissionDenied": "Grant the window-management permission to automatically place this window on another screen.",
         "permissionDeniedTitle": "Couldn't move window to another screen",
