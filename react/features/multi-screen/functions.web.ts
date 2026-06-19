@@ -1,4 +1,6 @@
 import { IReduxState } from '../app/types';
+import { getDominantSpeakerParticipant } from '../base/participants/functions';
+import { getLargeVideoParticipant } from '../large-video/functions';
 
 import { SECONDARY_LAYOUTS, SECONDARY_WINDOW_FALLBACK, SecondaryLayout } from './constants';
 import logger from './logger';
@@ -98,6 +100,83 @@ export function getSecondaryLayout(state: IReduxState): SecondaryLayout {
 }
 
 /**
+ * Returns whether the Stage filmstrip is open (expanded) in the secondary window.
+ *
+ * @param {IReduxState} state - The Redux state.
+ * @returns {boolean} Whether the stage filmstrip is open.
+ */
+export function isStageFilmstripOpen(state: IReduxState): boolean {
+    return state['features/multi-screen'].stageFilmstripOpen;
+}
+
+/**
+ * Returns the id of the participant the user explicitly pinned to the secondary
+ * window's Stage, or {@code null} when nothing is pinned (the stage auto-selects).
+ *
+ * Unlike {@link getStageParticipantId} — which resolves what is actually shown,
+ * applying the auto-select fallbacks — this is the raw pin. It drives the pin
+ * badge and the pin/unpin toggle, so only the tile the user deliberately pinned
+ * is marked (and unpinning it returns the stage to auto-select).
+ *
+ * @param {IReduxState} state - The Redux state.
+ * @returns {string|null} The pinned participant id, or null.
+ */
+export function getStagePinnedId(state: IReduxState): string | null {
+    return state['features/multi-screen'].stagePinnedId;
+}
+
+/**
+ * Returns the id of the participant — a person or a virtual screenshare — to
+ * feature on the secondary window's Stage, or {@code undefined} when there is
+ * no one.
+ *
+ * Resolution order: the participant the user explicitly pinned (when still
+ * present), then whatever the main window's large video currently shows (so the
+ * two windows agree — the active screenshare when someone is sharing, otherwise
+ * the dominant speaker), then the dominant speaker, then the first participant.
+ * The pin lets the user switch which screen or person the stage features. The
+ * video track is resolved by the caller via {@code getVideoTrackByParticipant},
+ * which yields the desktop track for a screenshare id and the camera track for a
+ * person.
+ *
+ * @param {IReduxState} state - The Redux state.
+ * @param {string[]} participantIds - The ids eligible for the stage (everyone in
+ * the filmstrip — people and screenshares alike).
+ * @returns {string|undefined} The id to feature on the stage.
+ */
+export function getStageParticipantId(state: IReduxState, participantIds: string[]): string | undefined {
+    if (participantIds.length === 0) {
+        return undefined;
+    }
+
+    // An explicit user pick wins, as long as that participant/screenshare is
+    // still present; otherwise it is ignored and the auto-selection below applies
+    // (so a pinned share that ends falls back instead of leaving a black stage).
+    const pinnedId = state['features/multi-screen'].stagePinnedId;
+
+    if (pinnedId && participantIds.includes(pinnedId)) {
+        return pinnedId;
+    }
+
+    // Mirror the main window's large video: it already features the active
+    // screenshare when present and the dominant speaker otherwise, so both
+    // windows stay in agreement until the user pins something here.
+    const largeVideoParticipant = getLargeVideoParticipant(state);
+
+    if (largeVideoParticipant && participantIds.includes(largeVideoParticipant.id)) {
+        return largeVideoParticipant.id;
+    }
+
+    const dominantSpeaker = getDominantSpeakerParticipant(state);
+
+    if (dominantSpeaker && participantIds.includes(dominantSpeaker.id)) {
+        return dominantSpeaker.id;
+    }
+
+    return participantIds[0];
+}
+
+/**
  * Type guard for whether a string is one of the known secondary layouts.
  *
  * @param {string} [value] - The candidate layout value.
@@ -142,7 +221,7 @@ export function getEffectiveSecondaryLayout(state: IReduxState): SecondaryLayout
         return saved;
     }
 
-    return getConfiguredDefaultLayout(state) ?? SECONDARY_LAYOUTS.GALLERY;
+    return getConfiguredDefaultLayout(state) ?? SECONDARY_LAYOUTS.STAGE;
 }
 
 /**

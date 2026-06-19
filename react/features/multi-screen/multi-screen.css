@@ -42,26 +42,36 @@
     overflow: hidden;
 }
 
-/* ---------------------------------------------------------------------------
- * Active Speaker layout
- * ------------------------------------------------------------------------- */
-.multi-screen-active-speaker {
+/* Holds the active layout above the toolbar. */
+.multi-screen-content {
+    position: relative;
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+ * Stage layout — one screen/person featured large with a vertical filmstrip down
+ * the right, mirroring the main window's stage view.
+ * ------------------------------------------------------------------------- */
+.multi-screen-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
     min-height: 0;
     background-color: #292929;
 }
 
-.multi-screen-video-wrapper {
-    width: 100%;
-    height: 100%;
+/* The featured screen/person — fills the space left of the filmstrip */
+.multi-screen-stage-main {
+    flex: 1;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
+    min-width: 0;
     min-height: 0;
 }
 
@@ -70,10 +80,6 @@
     height: 100%;
     object-fit: contain;
     background-color: #040404;
-}
-
-.multi-screen-video.hidden {
-    display: none;
 }
 
 /* Avatar fallback when video is off — centered over the stage */
@@ -166,8 +172,11 @@
     object-fit: cover;
 }
 
-.multi-screen-tile-video.hidden {
-    display: none;
+/* Screenshare tiles use contain (not cover) so shared slides/code/screens are
+ * shown whole rather than cropped to fill the tile. */
+.multi-screen-tile-video.screen {
+    object-fit: contain;
+    background-color: #040404;
 }
 
 .multi-screen-tile-avatar {
@@ -176,30 +185,176 @@
     justify-content: center;
 }
 
-/* Tile name pill — bottom-left, matches main window thumbnails */
-.multi-screen-tile-name {
+/* Bottom-left status pill — mic/moderator indicators followed by the name,
+ * matching the main window's thumbnail chrome. The dark pill gives the otherwise
+ * background-less indicator glyphs contrast over the video. */
+.multi-screen-tile-bottom {
     position: absolute;
-    bottom: 8px;
-    left: 8px;
-    padding: 3px 8px;
+    bottom: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: calc(100% - 12px);
+    padding: 3px 6px;
     background-color: rgba(0, 0, 0, 0.6);
-    border-radius: 3px;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.multi-screen-tile-name {
+    min-width: 0;
     font-size: 12px;
     line-height: 16px;
     font-weight: 600;
     white-space: nowrap;
-    max-width: calc(100% - 16px);
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+/* Wraps the strip and its edge toggle so the toggle can stick out over the stage
+ * without being clipped by the strip's overflow. The wrapper sizes to the strip,
+ * so the stage grows as the strip collapses. */
+.multi-screen-filmstrip-wrap {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+}
+
+/* Clip window for the vertical filmstrip. Only this element's width animates; it
+ * reveals/hides a fixed-width inner strip via overflow, so closing cuts the tiles
+ * off at the edge instead of dragging/squashing them. */
+.multi-screen-stage-filmstrip {
+    position: relative;
+    box-sizing: border-box;
+    width: 188px;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width 0.3s ease-in-out;
+}
+
+/* Collapsed: animate the clip window's width to zero so the stage expands into
+ * the freed space (mirrors the main window's filmstrip). */
+.multi-screen-filmstrip-wrap.collapsed .multi-screen-stage-filmstrip {
+    width: 0;
+}
+
+/* The actual tile column, kept at a fixed width and pinned to the clip window's
+ * left edge so it travels with the filmstrip: as the clip window narrows, its
+ * left edge moves right, carrying the (fixed-size, un-squashed) tiles along until
+ * they slide off and are cut at the window's right edge — mirroring the main
+ * window. Scrolls vertically when participants overflow. */
+.multi-screen-stage-filmstrip-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    width: 188px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    background-color: #040404;
+}
+
+.multi-screen-stage-filmstrip-inner::-webkit-scrollbar {
+    width: 8px;
+}
+
+.multi-screen-stage-filmstrip-inner::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+/* Each filmstrip tile is a clickable button that pins its screen/person to the
+ * stage. A transparent border is always reserved so the hover ring doesn't shift
+ * the strip; the pinned tile is marked by the pin badge below rather than an
+ * outline. position: relative anchors that badge. */
+.multi-screen-filmstrip-item {
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    line-height: 0;
+    transition: border-color 0.2s ease;
+}
+
+.multi-screen-filmstrip-item:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Pin badge on the pinned tile — replaces the selection outline with the same pin
+ * affordance the main window uses (IconPin on a dark rounded chip). Shown only on
+ * the tile the user pinned; click that tile again to unpin. pointer-events: none
+ * so a click on the badge still reaches the button and toggles the pin. */
+.multi-screen-filmstrip-pin {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    line-height: 0;
+    pointer-events: none;
+}
+
+/* Collapse/expand handle, mirroring the main window's edge toggle: a small
+ * rounded tab that sticks out over the stage on the strip's left edge, vertically
+ * centered. Hidden until the stage is hovered (or focused via keyboard), and
+ * always shown while collapsed so the strip can be reopened. The chevron points
+ * toward the strip when open and away when collapsed. */
+.multi-screen-filmstrip-toggle {
+    position: absolute;
+    top: 50%;
+    left: -26px;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background-color: rgba(20, 20, 20, 0.85);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.15s ease;
+}
+
+.multi-screen-stage:hover .multi-screen-filmstrip-toggle,
+.multi-screen-filmstrip-toggle:focus-visible,
+.multi-screen-filmstrip-wrap.collapsed .multi-screen-filmstrip-toggle {
+    opacity: 1;
+}
+
+.multi-screen-filmstrip-toggle:hover {
+    background-color: rgba(41, 41, 41, 0.95);
+}
+
 /* ---------------------------------------------------------------------------
- * Secondary window toolbar
+ * Secondary window toolbar — a minimal, centered, icon-only layout switcher
+ * modelled on the main window's toolbox.
  * ------------------------------------------------------------------------- */
 .multi-screen-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 8px 12px;
     background-color: #141414;
     flex-shrink: 0;
@@ -214,14 +369,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 36px;
-    padding: 0 16px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     border: none;
     border-radius: 6px;
     background-color: rgba(255, 255, 255, 0.08);
     color: #fff;
-    font-size: 13px;
-    font-weight: 600;
     cursor: pointer;
     transition: background-color 0.15s ease;
 }
@@ -238,12 +392,4 @@
 
 .multi-screen-toolbar-btn.active:hover {
     background-color: #2f6fd6;
-}
-
-.multi-screen-close-btn {
-    background-color: #cb2233;
-}
-
-.multi-screen-close-btn:hover {
-    background-color: #a91b29;
 }
