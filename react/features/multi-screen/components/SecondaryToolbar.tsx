@@ -3,17 +3,31 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { IReduxState } from '../../app/types';
-import { closeSecondaryWindow, selectSecondaryLayout } from '../actions';
-import { SECONDARY_LAYOUTS } from '../constants';
+import { IconTileView, IconUser } from '../../base/icons/svg';
+import { selectSecondaryLayout } from '../actions';
+import { SECONDARY_LAYOUTS, SecondaryLayout } from '../constants';
 import { getSecondaryLayout } from '../functions';
+
+import LayoutRadioButton from './LayoutRadioButton';
+
+/**
+ * The selectable layouts, in the order they appear in the toolbar radiogroup.
+ * Icons mirror the main window: a single focused person for Stage, the grid for
+ * Tile.
+ */
+const LAYOUT_OPTIONS: Array<{ icon: Function; id: string; labelKey: string; layout: SecondaryLayout; }> = [
+    { icon: IconUser, id: 'multiScreenStageBtn', labelKey: 'multiScreen.stageView', layout: SECONDARY_LAYOUTS.STAGE },
+    { icon: IconTileView, id: 'multiScreenTileBtn', labelKey: 'multiScreen.tileView', layout: SECONDARY_LAYOUTS.TILE }
+];
 
 /**
  * Toolbar displayed inside the secondary browser window.
  *
- * The two layout buttons form a WAI-ARIA radiogroup: only the selected one is
- * in the tab order (roving tabindex) and the arrow/Home/End keys move the
- * selection between them. The close button sits outside the group. All state
- * changes go through the shared Redux store.
+ * A minimal, icon-only layout switcher modelled on the main window's toolbox. The
+ * buttons form a WAI-ARIA radiogroup: only the selected one is in the tab order
+ * (roving tabindex) and the arrow/Home/End keys move the selection between them.
+ * The window is closed via its native title-bar control, so there is no in-app
+ * close button. All state changes go through the shared Redux store.
  *
  * @returns {React.ReactElement}
  */
@@ -23,74 +37,59 @@ const SecondaryToolbar: React.FC = () => {
     const currentLayout = useSelector(
         (state: IReduxState) => getSecondaryLayout(state)
     );
-    const activeSpeakerRef = useRef<HTMLButtonElement>(null);
-    const galleryRef = useRef<HTMLButtonElement>(null);
+    const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-    const isActiveSpeaker = currentLayout === SECONDARY_LAYOUTS.ACTIVE_SPEAKER;
-    const isGallery = currentLayout === SECONDARY_LAYOUTS.GALLERY;
+    const selectedIndex = LAYOUT_OPTIONS.findIndex(option => option.layout === currentLayout);
+
+    const registerRef = useCallback((index: number, element: HTMLButtonElement | null) => {
+        buttonRefs.current[index] = element;
+    }, []);
 
     /**
-     * Handles switching to active speaker layout.
+     * Switches to the layout at the given index and moves focus to its radio,
+     * following the WAI-ARIA roving-tabindex radio pattern.
      *
+     * @param {number} index - The option index to select.
      * @returns {void}
      */
-    const onActiveSpeaker = useCallback(() => {
-        dispatch(selectSecondaryLayout(SECONDARY_LAYOUTS.ACTIVE_SPEAKER));
+    const selectIndex = useCallback((index: number) => {
+        dispatch(selectSecondaryLayout(LAYOUT_OPTIONS[index].layout));
+        buttonRefs.current[index]?.focus();
     }, [ dispatch ]);
 
     /**
-     * Handles switching to gallery layout.
-     *
-     * @returns {void}
-     */
-    const onGallery = useCallback(() => {
-        dispatch(selectSecondaryLayout(SECONDARY_LAYOUTS.GALLERY));
-    }, [ dispatch ]);
-
-    /**
-     * Handles closing the secondary window.
-     *
-     * @returns {void}
-     */
-    const onClose = useCallback(() => {
-        dispatch(closeSecondaryWindow());
-    }, [ dispatch ]);
-
-    /**
-     * Moves the radiogroup selection with the keyboard, following the WAI-ARIA
-     * radio pattern: arrows toggle between the two options, Home selects the
-     * first and End the last.
+     * Moves the radiogroup selection with the keyboard: arrows wrap between the
+     * options, Home selects the first and End the last.
      *
      * @param {React.KeyboardEvent} event - The keydown event.
      * @returns {void}
      */
     const onLayoutKeyDown = useCallback((event: React.KeyboardEvent) => {
+        const count = LAYOUT_OPTIONS.length;
+        let nextIndex: number;
+
         switch (event.key) {
-        case 'ArrowLeft':
-        case 'ArrowUp':
         case 'ArrowRight':
         case 'ArrowDown':
-            event.preventDefault();
-            if (isActiveSpeaker) {
-                onGallery();
-                galleryRef.current?.focus();
-            } else {
-                onActiveSpeaker();
-                activeSpeakerRef.current?.focus();
-            }
+            nextIndex = (selectedIndex + 1) % count;
+            break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            nextIndex = ((selectedIndex - 1) + count) % count;
             break;
         case 'Home':
-            event.preventDefault();
-            onActiveSpeaker();
-            activeSpeakerRef.current?.focus();
+            nextIndex = 0;
             break;
         case 'End':
-            event.preventDefault();
-            onGallery();
-            galleryRef.current?.focus();
+            nextIndex = count - 1;
             break;
+        default:
+            return;
         }
-    }, [ isActiveSpeaker, onActiveSpeaker, onGallery ]);
+
+        event.preventDefault();
+        selectIndex(nextIndex);
+    }, [ selectedIndex, selectIndex ]);
 
     return (
         <div className = 'multi-screen-toolbar'>
@@ -99,36 +98,18 @@ const SecondaryToolbar: React.FC = () => {
                 className = 'multi-screen-toolbar-buttons'
                 onKeyDown = { onLayoutKeyDown }
                 role = 'radiogroup'>
-                <button
-                    aria-checked = { isActiveSpeaker }
-                    className = { `multi-screen-toolbar-btn ${isActiveSpeaker ? 'active' : ''}` }
-                    id = 'multiScreenActiveSpeakerBtn'
-                    onClick = { onActiveSpeaker }
-                    ref = { activeSpeakerRef }
-                    role = 'radio'
-                    tabIndex = { isActiveSpeaker ? 0 : -1 }
-                    type = 'button'>
-                    { t('multiScreen.speakerView') }
-                </button>
-                <button
-                    aria-checked = { isGallery }
-                    className = { `multi-screen-toolbar-btn ${isGallery ? 'active' : ''}` }
-                    id = 'multiScreenGalleryBtn'
-                    onClick = { onGallery }
-                    ref = { galleryRef }
-                    role = 'radio'
-                    tabIndex = { isGallery ? 0 : -1 }
-                    type = 'button'>
-                    { t('multiScreen.galleryView') }
-                </button>
+                { LAYOUT_OPTIONS.map((option, index) => (
+                    <LayoutRadioButton
+                        icon = { option.icon }
+                        id = { option.id }
+                        index = { index }
+                        key = { option.layout }
+                        label = { t(option.labelKey) }
+                        onSelect = { selectIndex }
+                        registerRef = { registerRef }
+                        selected = { index === selectedIndex } />
+                )) }
             </div>
-            <button
-                className = 'multi-screen-toolbar-btn multi-screen-close-btn'
-                id = 'multiScreenCloseBtn'
-                onClick = { onClose }
-                type = 'button'>
-                { t('multiScreen.close') }
-            </button>
         </div>
     );
 };

@@ -1,12 +1,18 @@
 import { IStore } from '../app/types';
 import i18next from '../base/i18n/i18next';
+import { getScreenshareParticipantIds } from '../base/participants/functions';
 import { updateSettings } from '../base/settings/actions';
 import BaseTheme from '../base/ui/components/BaseTheme.web';
 import { showNotification, showWarningNotification } from '../notifications/actions';
 import { NOTIFICATION_TIMEOUT_TYPE } from '../notifications/constants';
 
-import { SET_MULTI_SCREEN_ACTIVE, SET_SECONDARY_LAYOUT } from './actionTypes';
-import { SECONDARY_WINDOW_NAME, SECONDARY_WINDOW_ROOT_ID, SecondaryLayout } from './constants';
+import {
+    SET_MULTI_SCREEN_ACTIVE,
+    SET_SECONDARY_LAYOUT,
+    SET_STAGE_FILMSTRIP_OPEN,
+    SET_STAGE_PARTICIPANT
+} from './actionTypes';
+import { SECONDARY_LAYOUTS, SECONDARY_WINDOW_NAME, SECONDARY_WINDOW_ROOT_ID, SecondaryLayout } from './constants';
 import { getEffectiveSecondaryLayout, getSecondaryWindowPlacement, isMultiScreenSupported } from './functions';
 import logger from './logger';
 
@@ -294,10 +300,20 @@ export function openSecondaryWindow() {
                 dispatch(closeSecondaryWindow());
             });
 
-            // Open in the user's last-used layout when they have one, otherwise
-            // the deployment-configured default, otherwise the gallery fallback
-            // (resolved and validated in the selector).
-            dispatch(setSecondaryLayout(getEffectiveSecondaryLayout(state)));
+            // Pick the initial layout. The auto-switch policy (see
+            // maybeAutoSwitchToStage) features an active share, so start in Stage
+            // when someone is already sharing as the window opens; otherwise honor
+            // the user's last-used layout, then the deployment-configured default,
+            // then the Stage fallback (resolved and validated in the selector).
+            // State is re-read because a share may have started while we awaited
+            // window placement. setSecondaryLayout is transient, so a forced Stage
+            // is never saved as the user's preferred layout.
+            const layoutState = getState();
+            const initialLayout = getScreenshareParticipantIds(layoutState).length > 0
+                ? SECONDARY_LAYOUTS.STAGE
+                : getEffectiveSecondaryLayout(layoutState);
+
+            dispatch(setSecondaryLayout(initialLayout));
 
             // Update Redux state.
             dispatch({
@@ -387,5 +403,42 @@ export function selectSecondaryLayout(layout: SecondaryLayout) {
     return (dispatch: IStore['dispatch']) => {
         dispatch(setSecondaryLayout(layout));
         dispatch(updateSettings({ multiScreenLayout: layout }));
+    };
+}
+
+/**
+ * Pins the participant — a person or a shared screen — featured on the Stage
+ * layout, so the user can switch which one the stage shows from the filmstrip.
+ * Passing null returns to auto-select (mirror the main window's stage, falling
+ * back to the dominant speaker).
+ *
+ * This is a transient choice (it is not persisted to {@code base/settings}), so a
+ * later session starts back in auto-select.
+ *
+ * @param {string|null} participantId - The participant or screenshare to feature,
+ * or null for auto.
+ * @returns {Object}
+ */
+export function selectStageParticipant(participantId: string | null) {
+    return {
+        type: SET_STAGE_PARTICIPANT,
+        participantId
+    };
+}
+
+/**
+ * Opens or collapses the Stage filmstrip in the secondary window. Local to the
+ * secondary window, so it does not affect the main window's filmstrip.
+ *
+ * @param {boolean} open - Whether the filmstrip should be open (expanded).
+ * @returns {{
+ *     type: SET_STAGE_FILMSTRIP_OPEN,
+ *     open: boolean
+ * }}
+ */
+export function setStageFilmstripOpen(open: boolean) {
+    return {
+        type: SET_STAGE_FILMSTRIP_OPEN,
+        open
     };
 }

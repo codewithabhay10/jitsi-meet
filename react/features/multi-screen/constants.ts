@@ -8,15 +8,17 @@
 export const SECONDARY_LAYOUTS = {
 
     /**
-     * Active speaker view — shows the dominant/speaking participant
-     * in a large video display.
+     * Stage view — features one thing on a large display (the active
+     * screenshare, else the dominant speaker) with a vertical filmstrip of
+     * everyone else down the side, mirroring the main window's stage. Clicking a
+     * filmstrip tile pins that screen or person to the stage.
      */
-    ACTIVE_SPEAKER: 'active-speaker',
+    STAGE: 'stage',
 
     /**
-     * Gallery view — shows all participants in a responsive grid.
+     * Tile view — shows all participants in a responsive grid.
      */
-    GALLERY: 'gallery'
+    TILE: 'tile'
 } as const;
 
 export type SecondaryLayout = typeof SECONDARY_LAYOUTS[keyof typeof SECONDARY_LAYOUTS];

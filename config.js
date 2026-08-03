@@ -1939,18 +1939,19 @@ var config = {
     // },
 
     // Settings for the multi-screen feature, which opens a secondary browser
-    // window rendering the conference in an independent layout (e.g. gallery on
-    // one monitor, active speaker on another). On browsers that expose the
-    // Window Management API (Chrome/Edge) the window is placed on another screen
-    // automatically; elsewhere it opens at an offset the user can drag over.
+    // window rendering the conference in an independent layout (e.g. a shared
+    // screen on a stage on one monitor while you watch the tiled grid on
+    // another). On browsers that expose the Window Management API (Chrome/Edge)
+    // the window is placed on another screen automatically; elsewhere it opens at
+    // an offset the user can drag over.
     // multiScreen: {
     //     // Whether the feature is enabled. It is experimental and disabled by
     //     // default; set to true to show the toolbar button and allow opening
     //     // the secondary window (on browsers that support it).
     //     enabled: true,
-    //     // The layout the secondary window opens with: 'gallery' (default) or
-    //     // 'active-speaker'.
-    //     defaultLayout: 'gallery',
+    //     // The layout the secondary window opens with: 'stage' (default) or
+    //     // 'tile'.
+    //     defaultLayout: 'stage',
     // },
 
     // The watchRTC initialize config params as described :

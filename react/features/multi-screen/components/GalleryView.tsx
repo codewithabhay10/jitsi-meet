@@ -11,9 +11,11 @@ import GalleryTile from './GalleryTile';
 const MAX_GALLERY_COLUMNS = 5;
 
 /**
- * Gap between gallery tiles in pixels.
+ * Gap between gallery tiles in pixels. Must match the {@code gap} on
+ * {@code .multi-screen-gallery} / {@code .multi-screen-gallery-row} in the CSS, or
+ * the tile-size math mis-counts the gaps and the grid overflows (and is clipped).
  */
-const GALLERY_GAP = 4;
+const GALLERY_GAP = 8;
 
 interface IProps {
 

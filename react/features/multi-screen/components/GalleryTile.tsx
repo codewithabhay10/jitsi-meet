@@ -1,13 +1,24 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useSelector } from 'react-redux';
 
 import { IReduxState } from '../../app/types';
 import Avatar from '../../base/avatar/components/Avatar';
-import { MEDIA_TYPE } from '../../base/media/constants';
-import { getParticipantDisplayName } from '../../base/participants/functions';
-import { getTrackByMediaTypeAndParticipant } from '../../base/tracks/functions.any';
+import VideoTrack from '../../base/media/components/web/VideoTrack';
+import {
+    getParticipantById,
+    getParticipantDisplayName,
+    isScreenShareParticipantById
+} from '../../base/participants/functions';
+import { getVideoTrackByParticipant } from '../../base/tracks/functions.any';
+import StatusIndicators from '../../filmstrip/components/web/StatusIndicators';
 
-import { useAttachTrack } from './useAttachTrack';
+/**
+ * Empty style object passed to {@link VideoTrack}, whose {@code style} prop is
+ * required. Sizing and object-fit come from CSS classes instead; a shared
+ * constant keeps the reference stable so VideoTrack's internal
+ * {@code shouldComponentUpdate} never re-renders the element over it.
+ */
+const VIDEO_STYLE = {};
 
 interface IProps {
 
@@ -36,8 +47,12 @@ interface IProps {
 /**
  * Individual participant tile for the gallery view in the secondary window.
  *
- * Each tile manages its own video track attach/detach lifecycle; the speaking
- * indicator border is driven by the {@code isActiveSpeaker} prop.
+ * The shared {@link VideoTrack} leaf owns the attach/detach lifecycle (it
+ * re-attaches only when the underlying {@code jitsiTrack} changes, so switching
+ * which participant a tile shows never causes a black flash); the speaking
+ * indicator border is driven by the {@code isActiveSpeaker} prop. Memoized so a
+ * dominant-speaker change (which re-renders the gallery) only re-renders the two
+ * tiles whose {@code isActiveSpeaker} actually flips, not every tile.
  *
  * @param {IProps} props - Component props.
  * @returns {React.ReactElement}
@@ -48,8 +63,6 @@ const GalleryTile: React.FC<IProps> = ({
     participantId,
     width
 }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-
     // Resolve the name reactively from the store so renames update the label.
     // getParticipantDisplayName supplies the deployment's localized fallback
     // (defaultRemoteDisplayName) when a participant has no name yet.
@@ -57,17 +70,29 @@ const GalleryTile: React.FC<IProps> = ({
         (state: IReduxState) => getParticipantDisplayName(state, participantId)
     );
 
-    // Select this participant's specific video track rather than the whole
-    // tracks slice, so the tile only re-renders when its own track changes
-    // (not on every track mutation anywhere in the conference).
-    const videoTrack = useSelector((state: IReduxState) =>
-        getTrackByMediaTypeAndParticipant(state['features/base/tracks'], MEDIA_TYPE.VIDEO, participantId));
+    // A screenshare is a virtual participant whose track is owned by the real
+    // sharer, so it is detected by id and resolved via getVideoTrackByParticipant
+    // (below) rather than a direct participant-id track match. The flag also
+    // switches the tile to object-fit: contain so slides/code are never cropped.
+    // Subscribing to the boolean (not the participant object) avoids re-rendering
+    // on unrelated participant updates.
+    const isScreenshare = useSelector(
+        (state: IReduxState) => isScreenShareParticipantById(state, participantId)
+    );
 
+    // getVideoTrackByParticipant returns the camera track for a real participant
+    // and the desktop track for a virtual screenshare participant, so screenshare
+    // tiles show the shared screen instead of falling back to the avatar. The
+    // participant is resolved inside the selector so the subscription tracks the
+    // video track, not the whole participant object — otherwise unrelated updates
+    // (name, role, raised hand) would re-render the tile.
+    const videoTrack = useSelector(
+        (state: IReduxState) => getVideoTrackByParticipant(state, getParticipantById(state, participantId))
+    );
+
+    // Render video only for a live, unmuted track; muted/camera-off tiles show
+    // the avatar instead.
     const hasVideo = Boolean(videoTrack?.jitsiTrack && !videoTrack.muted);
-
-    // Attach only when there is a live, unmuted track; muted/camera-off tiles
-    // show the avatar instead.
-    useAttachTrack(videoRef, hasVideo ? videoTrack : undefined);
 
     const tileStyle = {
         width: `${width}px`,
@@ -81,23 +106,32 @@ const GalleryTile: React.FC<IProps> = ({
         <div
             className = { `multi-screen-tile ${isActiveSpeaker ? 'speaking' : ''}` }
             style = { tileStyle }>
-            <video
-                autoPlay = { true }
-                className = { `multi-screen-tile-video ${hasVideo ? '' : 'hidden'}` }
-                playsInline = { true }
-                ref = { videoRef } />
-            { !hasVideo && (
+            { hasVideo ? (
+                <VideoTrack
+                    className = { `multi-screen-tile-video ${isScreenshare ? 'screen' : ''}` }
+                    muted = { true }
+                    style = { VIDEO_STYLE }
+                    videoTrack = { videoTrack } />
+            ) : (
                 <div className = 'multi-screen-tile-avatar'>
                     <Avatar
                         participantId = { participantId }
                         size = { avatarSize } />
                 </div>
             ) }
-            <div className = 'multi-screen-tile-name'>
-                { participantName }
+            <div className = 'multi-screen-tile-bottom'>
+                <StatusIndicators
+                    audio = { !isScreenshare }
+                    moderator = { true }
+                    participantID = { participantId }
+                    screenshare = { isScreenshare }
+                    thumbnailType = '' />
+                <span className = 'multi-screen-tile-name'>
+                    { participantName }
+                </span>
             </div>
         </div>
     );
 };
 
-export default GalleryTile;
+export default React.memo(GalleryTile);
