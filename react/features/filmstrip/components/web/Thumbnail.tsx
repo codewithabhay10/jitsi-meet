@@ -299,7 +299,14 @@ const defaultStyles = (theme: Theme) => {
             right: 0,
             padding: theme.spacing(1),
             zIndex: 10,
-            display: 'flex'
+            display: 'flex',
+
+            // The trigger inside renders nothing when the feature is disabled,
+            // but this box does not: it would still cover the top-right corner
+            // of a tile whose own <span> is the click target for pinning, and
+            // swallow the clicks landing there on a deployment that never turns
+            // the feature on. Let them through; the button takes its own back.
+            pointerEvents: 'none' as const
         },
 
         indicatorsBackground: {

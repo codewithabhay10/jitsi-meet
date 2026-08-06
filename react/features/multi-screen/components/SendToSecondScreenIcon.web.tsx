@@ -23,6 +23,13 @@ interface IProps {
 
 const useStyles = makeStyles()(() => {
     return {
+        // Wrappers that position this trigger disable pointer events so an empty
+        // box cannot swallow clicks meant for the tile underneath (see the
+        // shared-video thumbnail). Take them back for the button itself.
+        root: {
+            pointerEvents: 'auto' as const
+        },
+
         button: {
             padding: '3px !important',
             borderRadius: '4px',
@@ -71,7 +78,9 @@ const SendToSecondScreenIcon = ({ source, visible }: IProps) => {
     }
 
     return (
-        <span onKeyDown = { _onKeyDown }>
+        <span
+            className = { classes.root }
+            onKeyDown = { _onKeyDown }>
             <Button
                 accessibilityLabel = {
                     t(active ? 'multiScreen.removeFromSecondScreen' : 'multiScreen.sendToSecondScreen') }

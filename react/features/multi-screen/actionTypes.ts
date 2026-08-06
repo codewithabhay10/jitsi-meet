@@ -25,6 +25,20 @@ export const SET_SECOND_SCREEN = 'SET_SECOND_SCREEN';
 export const SET_SECOND_SCREEN_WINDOW = 'SET_SECOND_SCREEN_WINDOW';
 
 /**
+ * The type of (redux) action which records the screen a second-screen window is
+ * actually on, after the set of displays changed underneath it. The window is
+ * not moved: this only re-syncs the recorded index, which the browser can
+ * renumber when a display is attached or removed.
+ *
+ * {
+ *     type: SET_SECOND_SCREEN_PLACEMENT,
+ *     id: string,
+ *     screenId: number
+ * }
+ */
+export const SET_SECOND_SCREEN_PLACEMENT = 'SET_SECOND_SCREEN_PLACEMENT';
+
+/**
  * The type of (redux) action which closes a single second-screen window.
  *
  * {

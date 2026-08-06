@@ -2,6 +2,7 @@ import {
     REMOVE_SECOND_SCREEN,
     RESET_SECOND_SCREENS,
     SET_SECOND_SCREEN,
+    SET_SECOND_SCREEN_PLACEMENT,
     SET_SECOND_SCREEN_WINDOW
 } from './actionTypes';
 import { ISecondScreenSource } from './types';
@@ -47,6 +48,23 @@ export function setSecondScreenWindow(id: string, handle: unknown) {
         type: SET_SECOND_SCREEN_WINDOW,
         id,
         handle
+    };
+}
+
+/**
+ * Records the screen a second-screen window is actually on. Dispatched when the
+ * set of displays changes, which renumbers the indices the Window Management API
+ * reports; the window itself is not moved.
+ *
+ * @param {string} id - The window identifier.
+ * @param {number} screenId - The screen index the window is on now.
+ * @returns {{ type: SET_SECOND_SCREEN_PLACEMENT, id: string, screenId: number }}
+ */
+export function setSecondScreenPlacement(id: string, screenId: number) {
+    return {
+        type: SET_SECOND_SCREEN_PLACEMENT,
+        id,
+        screenId
     };
 }
 

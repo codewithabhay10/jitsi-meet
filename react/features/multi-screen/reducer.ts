@@ -4,6 +4,7 @@ import {
     REMOVE_SECOND_SCREEN,
     RESET_SECOND_SCREENS,
     SET_SECOND_SCREEN,
+    SET_SECOND_SCREEN_PLACEMENT,
     SET_SECOND_SCREEN_WINDOW
 } from './actionTypes';
 import { ISecondScreenEntry } from './types';
@@ -39,11 +40,32 @@ ReducerRegistry.register<IMultiScreenState>('features/multi-screen',
                 [action.id]: {
                     ...state.screens[action.id],
                     source: action.source,
-                    screenId: action.screenId,
+
+                    // Keep the screen the window is already on when the action
+                    // does not name one: an embedder re-sourcing a window it
+                    // opened need not repeat `screen`, and clobbering the index
+                    // to undefined here would leave that screen reading free the
+                    // next time a target is picked.
+                    screenId: action.screenId ?? state.screens[action.id]?.screenId,
                     setAt: action.setAt
                 }
             }
         };
+    case SET_SECOND_SCREEN_PLACEMENT: {
+        const entry = state.screens[action.id];
+
+        if (!entry) {
+            return state;
+        }
+
+        return {
+            ...state,
+            screens: {
+                ...state.screens,
+                [action.id]: { ...entry, screenId: action.screenId }
+            }
+        };
+    }
     case SET_SECOND_SCREEN_WINDOW: {
         const entry = state.screens[action.id];
 

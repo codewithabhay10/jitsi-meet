@@ -44,7 +44,13 @@ MiddlewareRegistry.register((store: IStore) => {
         case SET_SECOND_SCREEN: {
             const result = next(action);
 
-            openOrUpdateSecondScreen(store, action.id, action.screenId)
+            // Read the placement back from state rather than off the action: the
+            // reducer keeps the screen an entry is already on when the action
+            // does not name one, and opening on the action's undefined would put
+            // the window somewhere else than the entry says it is.
+            const { screenId } = store.getState()['features/multi-screen'].screens[action.id] ?? {};
+
+            openOrUpdateSecondScreen(store, action.id, screenId)
                 .catch(e => handleSecondScreenOpenError(store, action.id, e));
 
             return result;
